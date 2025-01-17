@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau de Bord - Détection de Spam</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+
+        .navbar {
+            background-color: #333;
+            overflow: hidden;
+            padding: 14px 16px;
+            margin-bottom: 20px;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            margin-right: 10px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .navbar a:hover {
+            background-color: #ddd;
+            color: black;
+        }
+
+        .navbar a.active {
+            background-color: #4CAF50;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            margin: 0;
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .stat-card p {
+            margin: 10px 0 0 0;
+            font-size: 2em;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .chart-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .chart-container h3 {
+            margin: 0 0 20px 0;
+            color: #333;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <a href="/index.html">Accueil</a>
+        <a href="/predict.html">Prédiction</a>
+        <a href="/history.html">Historique</a>
+        <a href="/batch.html">Traitement par lot</a>
+        <a href="/dashboard.html" class="active">Tableau de bord</a>
+        <a href="#" onclick="logout()" style="float: right;">Déconnexion</a>
+    </div>
+
+    <div class="container">
+        <h2>Tableau de Bord</h2>
+        
+        <div id="error" class="error"></div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total des prédictions</h3>
+                <p id="totalPredictions">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Taux de Spam</h3>
+                <p id="spamRatio">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Prédictions aujourd'hui</h3>
+                <p id="todayPredictions">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Quota restant</h3>
+                <p id="remainingQuota">-</p>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3>Distribution Spam/Non-Spam</h3>
+            <div id="spamDistribution" style="height: 400px;"></div>
+        </div>
+
+        <div class="chart-container">
+            <h3>Prédictions sur les 7 derniers jours</h3>
+            <div id="timelineChart" style="height: 400px;"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
+            }
+            loadDashboard();
+        });
+
+        async function loadDashboard() {
+            try {
+                console.log('Début du chargement du tableau de bord');
+                const token = localStorage.getItem('token');
+                console.log('Token présent:', !!token);
+
+                // Test du token
+                console.log('Token:', token ? token.substring(0, 20) + '...' : 'pas de token');
+
+                // Charger les statistiques
+                console.log('Tentative de chargement des stats...');
+                const statsResponse = await fetch('/api/stats', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                });
+                console.log('Status de la réponse stats:', statsResponse.status);
+                
+                // Afficher le contenu de la réponse pour le débogage
+                const statsText = await statsResponse.text();
+                console.log('Contenu de la réponse stats:', statsText);
+                
+                // Charger le quota
+                console.log('Tentative de chargement du quota...');
+                const quotaResponse = await fetch('/api/quota', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                });
+                console.log('Status de la réponse quota:', quotaResponse.status);
+                
+                // Afficher le contenu de la réponse pour le débogage
+                const quotaText = await quotaResponse.text();
+                console.log('Contenu de la réponse quota:', quotaText);
+
+                if (!statsResponse.ok || !quotaResponse.ok) {
+                    throw new Error(`Stats: ${statsResponse.status} - ${statsText}, Quota: ${quotaResponse.status} - ${quotaText}`);
+                }
+
+                // Parser les réponses JSON
+                const stats = JSON.parse(statsText);
+                const quota = JSON.parse(quotaText);
+
+                console.log('Données stats parsées:', stats);
+                console.log('Données quota parsées:', quota);
+
+                if (!stats || !quota) {
+                    throw new Error('Données invalides reçues du serveur');
+                }
+
+                updateStats(stats, quota);
+                createCharts(stats);
+                document.getElementById('error').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Erreur complète:', error);
+                const errorDiv = document.getElementById('error');
+                errorDiv.textContent = 'Erreur lors du chargement des données: ' + error.message;
+                errorDiv.style.display = 'block';
+                
+                // Afficher les détails de l'erreur dans la console
+                console.error('Stack trace:', error.stack);
+            }
+        }
+
+        function updateStats(stats, quota) {
+            console.log('Mise à jour des statistiques avec:', stats);
+            try {
+                document.getElementById('totalPredictions').textContent = 
+                    stats.total_predictions || '0';
+                
+                const spamRatio = stats.total_predictions > 0 
+                    ? ((stats.spam_count / stats.total_predictions) * 100).toFixed(1) 
+                    : '0';
+                document.getElementById('spamRatio').textContent = `${spamRatio}%`;
+                
+                document.getElementById('todayPredictions').textContent = 
+                    stats.predictions_today || '0';
+                
+                document.getElementById('remainingQuota').textContent = 
+                    quota.remaining || '0';
+            } catch (e) {
+                console.error('Erreur dans updateStats:', e);
+                throw e;
+            }
+        }
+
+        function createCharts(stats) {
+            console.log('Création des graphiques avec:', stats);
+            
+            // Graphique circulaire
+            const pieData = [{
+                values: [stats.spam_count || 0, stats.ham_count || 0],
+                labels: ['Spam', 'Non Spam'],
+                type: 'pie',
+                marker: {
+                    colors: ['#ff6b6b', '#4ecdc4']
+                }
+            }];
+
+            const pieLayout = {
+                margin: { t: 0, b: 0, l: 0, r: 0 },
+                showlegend: true,
+                legend: { orientation: 'h' }
+            };
+
+            Plotly.newPlot('spamDistribution', pieData, pieLayout);
+
+            // Graphique temporel
+            if (stats.dates && stats.predictions_count) {
+                const timelineData = [{
+                    x: stats.dates,
+                    y: stats.predictions_count,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    line: { color: '#4CAF50' },
+                    marker: { color: '#4CAF50' }
+                }];
+
+                const timelineLayout = {
+                    margin: { t: 20, b: 40, l: 40, r: 20 },
+                    xaxis: { title: 'Date' },
+                    yaxis: { title: 'Nombre de prédictions' }
+                };
+
+                Plotly.newPlot('timelineChart', timelineData, timelineLayout);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/login.html';
+        }
+
+        // Rafraîchir les données toutes les 5 minutes
+        setInterval(loadDashboard, 300000);
+    </script>
+</body>
+</html>

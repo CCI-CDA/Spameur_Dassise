@@ -1,45 +1,123 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spam Detection Test</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accueil - Détecteur de Spam</title>
+    <style>
+        /* Style pour la navbar */
+        .navbar {
+            background-color: #333;
+            overflow: hidden;
+            padding: 14px 16px;
+            margin-bottom: 20px;
+        }
 
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            margin-right: 10px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .navbar a:hover {
+            background-color: #ddd;
+            color: black;
+        }
+
+        .navbar a.active {
+            background-color: #4CAF50;
+        }
+
+        /* Style pour le conteneur principal */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Style pour les cartes */
+        .card {
+            background-color: #f9f9f9;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .welcome-message {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .feature-card {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .feature-card h3 {
+            color: #4CAF50;
+            margin-top: 0;
+        }
+    </style>
 </head>
 <body>
+    <div class="navbar">
+        <a href="/index.html" class="active">Accueil</a>
+        <a href="/predict.html">Prédiction</a>
+        <a href="/history.html">Historique</a>
+        <a href="/batch.html">Traitement par lot</a>
+        <a href="/dashboard.html">Tableau de bord</a>
+        <a href="#" onclick="logout()" style="float: right;">Déconnexion</a>
+    </div>
 
-<header>
-  <nav>
-    <ul>
-      <li><a href="/docs">Documentation</a></li>
-    </ul>
-  </nav>
-</header>
+    <div class="container">
+        <div class="welcome-message">
+            <h1>Bienvenue sur le Détecteur de Spam</h1>
+            <p>Un outil intelligent pour identifier les messages indésirables</p>
+        </div>
 
+        <div class="features">
+            <div class="feature-card">
+                <h3>Prédiction en temps réel</h3>
+                <p>Analysez instantanément vos messages pour détecter les spams</p>
+            </div>
+            <div class="feature-card">
+                <h3>Historique complet</h3>
+                <p>Consultez l'historique de toutes vos analyses précédentes</p>
+            </div>
+            <div class="feature-card">
+                <h3>Traitement par lot</h3>
+                <p>Analysez plusieurs messages simultanément via un fichier CSV</p>
+            </div>
+        </div>
+    </div>
 
-<h1>Spam Detection Test</h1>
-<form id="spamForm">
-  <label for="message">Message:</label>
-  <input type="text" id="message" name="message" required>
-  <button type="submit">Check</button>
-</form>
-<div id="result"></div>
+    <script>
+        // Vérification de l'authentification
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/login.html';
+            }
+        });
 
-<script>
-  document.getElementById('spamForm').addEventListener('submit', async function(event) {
-    event.preventDefault();
-    const message = document.getElementById('message').value;
-    const response = await fetch('/predict', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ message: message })
-    });
-    const result = await response.json();
-    document.getElementById('result').innerText = `Spam: ${result.spam}, Probability: ${result.probability}`;
-  });
-</script>
+        // Fonction de déconnexion
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/login.html';
+        }
+    </script>
 </body>
 </html>

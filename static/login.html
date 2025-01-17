@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page de Connexion</title>
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .button-container {
+            margin-top: 20px;
+        }
+
+        .register-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .register-button:hover {
+            background-color: #45a049;
+        }
+
+        form {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Connexion</h2>
+        <div style="margin-bottom: 20px; color: #666;">
+            <p>Utilisateur par défaut :</p>
+            <ul>
+                <li>Nom d'utilisateur : dassise</li>
+                <li>Mot de passe : 1234</li>
+            </ul>
+        </div>
+        <form id="login-form">
+            <label for="username">Nom d'utilisateur:</label>
+            <input type="text" id="username" required><br><br>
+
+            <label for="password">Mot de passe:</label>
+            <input type="password" id="password" required><br><br>
+
+            <div class="button-container">
+                <button type="submit">Se connecter</button>
+                <button type="button" class="register-button" onclick="window.location.href='/register.html'">S'inscrire</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const loginForm = document.getElementById('login-form');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+
+            loginForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+
+                try {
+                    const response = await fetch('/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            username: usernameInput.value.trim(),
+                            password: passwordInput.value
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (response.ok && data.access_token) {
+                        localStorage.setItem('token', data.access_token);
+                        window.location.href = '/index.html';
+                    } else {
+                        const errorMessage = data.detail || 'Erreur de connexion';
+                        alert(errorMessage);
+                    }
+                } catch (error) {
+                    console.error('Erreur:', error);
+                    alert('Erreur de connexion. Vérifiez la console pour plus de détails.');
+                }
+            });
+
+            // Rediriger vers index.html si déjà connecté
+            if (localStorage.getItem('token')) {
+                window.location.href = '/index.html';
+            }
+        });
+    </script>
+</body>
+</html>

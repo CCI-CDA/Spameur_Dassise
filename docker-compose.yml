@@ -1,0 +1,13 @@
+version: '3.9'
+
+services:
+  spameur:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spameur_das
+    ports:
+      - "5600:5600"
+    volumes:
+      - .:/app
+    command: python app.py

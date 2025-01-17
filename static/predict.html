@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Détection de Spam</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+
+        .navbar {
+            background-color: #333;
+            overflow: hidden;
+            padding: 14px 16px;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            margin-right: 10px;
+            border-radius: 4px;
+        }
+
+        .navbar a:hover {
+            background-color: #ddd;
+            color: black;
+        }
+
+        .navbar a.active {
+            background-color: #4CAF50;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .analysis-section {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .word-list {
+            margin: 10px 0;
+        }
+
+        .word-item {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+        }
+
+        .spam-word {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .ham-word {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .impact-value {
+            font-size: 0.8em;
+            color: #666;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <a href="/index.html">Accueil</a>
+        <a href="/predict.html" class="active">Prédiction</a>
+        <a href="/history.html">Historique</a>
+        <a href="/batch.html">Traitement par lot</a>
+        <a href="/dashboard.html">Tableau de bord</a>
+        <a href="#" onclick="logout()" style="float: right;">Déconnexion</a>
+    </div>
+
+    <div class="container">
+        <h2>Détection de Spam</h2>
+        
+        <div class="form-group">
+            <p>Requêtes restantes aujourd'hui : <span id="quotaCount">--</span></p>
+            <label for="message">Entrez votre message :</label>
+            <textarea id="message" rows="4"></textarea>
+            <button onclick="analyzeMessage()">Analyser</button>
+        </div>
+
+        <div id="result" style="display: none;">
+            <h3>Résultat :</h3>
+            <p id="spamResult"></p>
+            <p id="probability"></p>
+            
+            <div class="analysis-section">
+                <h4>Analyse détaillée</h4>
+                <div>
+                    <h5>Indicateurs de spam :</h5>
+                    <div id="spamIndicators" class="word-list"></div>
+                </div>
+                <div>
+                    <h5>Indicateurs de message légitime :</h5>
+                    <div id="hamIndicators" class="word-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
+            }
+            updateQuota();
+        });
+
+        async function analyzeMessage() {
+            const message = document.getElementById('message').value;
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Erreur lors de l\'analyse');
+                }
+
+                const data = await response.json();
+                displayResult(data);
+                updateQuota();
+
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+            }
+        }
+
+        function displayResult(data) {
+            const resultDiv = document.getElementById('result');
+            const spamResult = document.getElementById('spamResult');
+            const probability = document.getElementById('probability');
+            const spamIndicators = document.getElementById('spamIndicators');
+            const hamIndicators = document.getElementById('hamIndicators');
+
+            resultDiv.style.display = 'block';
+            spamResult.textContent = data.spam ? 'Message Spam' : 'Message Légitime';
+            spamResult.style.color = data.spam ? '#c62828' : '#2e7d32';
+            probability.textContent = `Probabilité de spam: ${(data.probability * 100).toFixed(2)}%`;
+
+            spamIndicators.innerHTML = '';
+            hamIndicators.innerHTML = '';
+
+            if (data.analysis && data.analysis.spam_indicators) {
+                data.analysis.spam_indicators.forEach(item => {
+                    const wordDiv = document.createElement('div');
+                    wordDiv.className = 'word-item spam-word';
+                    wordDiv.innerHTML = `${item.word} <span class="impact-value">(${item.impact.toFixed(3)})</span>`;
+                    spamIndicators.appendChild(wordDiv);
+                });
+            }
+
+            if (data.analysis && data.analysis.ham_indicators) {
+                data.analysis.ham_indicators.forEach(item => {
+                    const wordDiv = document.createElement('div');
+                    wordDiv.className = 'word-item ham-word';
+                    wordDiv.innerHTML = `${item.word} <span class="impact-value">(${item.impact.toFixed(3)})</span>`;
+                    hamIndicators.appendChild(wordDiv);
+                });
+            }
+
+            if (data.quota) {
+                document.getElementById('quotaCount').textContent = data.quota.remaining;
+            }
+        }
+
+        async function updateQuota() {
+            const token = localStorage.getItem('token');
+            try {
+                const response = await fetch('/api/quota', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('quotaCount').textContent = data.remaining;
+                }
+            } catch (error) {
+                console.error('Erreur de mise à jour du quota:', error);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/login.html';
+        }
+    </script>
+</body>
+</html> 
